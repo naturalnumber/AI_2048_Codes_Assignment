@@ -1,4 +1,5 @@
 import heapq
+import math
 
 
 def a_star(start, h, goal, open):
@@ -94,13 +95,14 @@ if __name__ == '__main__':
 
     lg_d = {2 ** t: t for t in range(32)}
     pw_d = {t: 2 ** t for t in range(32)}
+    rt_d = {t: math.sqrt(2 ** t) for t in range(32)}
 
 
     def lg(num):
         return lg_d[num]
 
 
-    def tile_stats(game: Game) -> tuple:
+    def tile_stats_basic(game: Game) -> tuple:
         sumOfTiles = 0
         counts = [0] * 32
         for i in range(len(game.board)):
@@ -126,7 +128,7 @@ if __name__ == '__main__':
         check = lgg
 
         if counts is None:
-            _, counts = tile_stats(game)
+            _, counts = tile_stats_basic(game)
 
         if counts[check] > 0:
             return 0
@@ -143,7 +145,7 @@ if __name__ == '__main__':
 
     def perfect_moves_heuristic(game: Game) -> int:
         global sdc
-        sum_, counts = tile_stats(game)
+        sum_, counts = tile_stats_basic(game)
         #if sdc is None:
         #    sdc = game.goal + (lg(game.goal) - 1)
         return max(perfect_remaining_merges(game, counts), (sdc - sum_)/2)
@@ -151,7 +153,7 @@ if __name__ == '__main__':
 
     def perfect_moves_heuristic_x2(game: Game) -> int:
         global sdc
-        sum_, counts = tile_stats(game)
+        sum_, counts = tile_stats_basic(game)
         #if sdc is None:
         #    sdc = game.goal + (lg(game.goal) - 1)
         return max(perfect_remaining_merges(game, counts), sdc - sum_)
@@ -164,7 +166,51 @@ if __name__ == '__main__':
             return b + 1, a - 1
 
 
-    def find_distance(game, tile, count):
+    def find_adj_distance(game, tile, count):
+        found = []
+
+        for i in range(game.dimension):
+            for j in range(game.dimension):
+                if game.board[i][j] != tile:
+                    continue
+                found.append((i, j))
+                if len(found) == count:
+                    break
+            if len(found) == count:
+                break
+
+        for i in range(count):
+            for j in range(i, count):
+                hi = found[i]
+                hj = found[j]
+
+                di = abs(hi[0] - hj[0])
+                dj = abs(hi[1] - hj[1])
+
+                if di + dj == 1:
+                    return 1
+
+                adjacent = True
+                if di == 0:
+                    for s in range(*i_range(hi[1], hj[1])):
+                        if game.board[hi[0]][s] != 0:
+                            # min_ = min(3, min_)
+                            adjacent = False
+                            break
+                    if adjacent:
+                        return 1
+                elif dj == 0:
+                    for s in range(*i_range(hi[0], hj[0])):
+                        if game.board[s][hj[1]] != 0:
+                            # min_ = min(3, min_)
+                            adjacent = False
+                            break
+                    if adjacent:
+                        return 1
+        return 2
+
+
+    def find_distance_meta(game, tile, count):
         found = []
         min_ = 3
 
@@ -217,7 +263,7 @@ if __name__ == '__main__':
         check = lgg
 
         if counts is None:
-            _, counts = tile_stats(game)
+            _, counts = tile_stats_basic(game)
 
         if counts[check] > 0:
             return 0
@@ -228,12 +274,12 @@ if __name__ == '__main__':
             check -= 1
         if min_ + 2 < cut_:
             return cut_
-        return max(min_+find_distance(game, pw_d[check], counts[check]), cut_)
+        return max(min_ + find_distance_meta(game, pw_d[check], counts[check]), cut_)
 
 
     def min_moves_heuristic(game: Game) -> int:
         global sdc
-        sum_, counts = tile_stats(game)
+        sum_, counts = tile_stats_basic(game)
         #if sdc is None:
         #    sdc = game.goal + (lg(game.goal) - 1)
         cut_ = (sdc - sum_)/2
@@ -242,7 +288,7 @@ if __name__ == '__main__':
 
     def min_moves_heuristic_x2(game: Game) -> int:
         global sdc
-        sum_, counts = tile_stats(game)
+        sum_, counts = tile_stats_basic(game)
         #if sdc is None:
         #    sdc = game.goal + (lg(game.goal) - 1)
         cut_ = sdc - sum_
@@ -255,7 +301,7 @@ if __name__ == '__main__':
         check = lgg
 
         if counts is None:
-            _, counts = tile_stats(game)
+            _, counts = tile_stats_basic(game)
 
         if counts[check] > 0:
             return 0
@@ -269,12 +315,12 @@ if __name__ == '__main__':
 
         if min_ + 2 < cut_:
             return cut_+penalty
-        return max(min_+find_distance(game, pw_d[check], counts[check]), cut_)+penalty
+        return max(min_ + find_distance_meta(game, pw_d[check], counts[check]), cut_) + penalty
 
 
     def min_moves_heuristic_meta(game: Game) -> int:
         global sdc
-        sum_, counts = tile_stats(game)
+        sum_, counts = tile_stats_basic(game)
         #if sdc is None:
         #    sdc = game.goal + (lg(game.goal) - 1)
         cut_ = (sdc - sum_)/2
@@ -283,7 +329,7 @@ if __name__ == '__main__':
 
     def min_moves_heuristic_meta_x2(game: Game) -> int:
         global sdc
-        sum_, counts = tile_stats(game)
+        sum_, counts = tile_stats_basic(game)
         #if sdc is None:
         #    sdc = game.goal + (lg(game.goal) - 1)
         cut_ = sdc - sum_
@@ -292,7 +338,7 @@ if __name__ == '__main__':
 
     def min_moves_heuristic_meta2(game: Game) -> int:
         global sdc
-        sum_, counts = tile_stats(game)
+        sum_, counts = tile_stats_basic(game)
         #if sdc is None:
         #    sdc = game.goal + (lg(game.goal) - 1)
         cut_ = (sdc - sum_)/2
@@ -302,24 +348,88 @@ if __name__ == '__main__':
         return min_remaining_merges_meta(game, counts, cut_)+penalty
 
 
+    def tile_stats(game: Game) -> tuple:
+        sum_ = 0
+        sum_2 = 0
+        sum_h = 0
+        counts = [0] * (lgg+1)
+        rows_cnts = [[0] * lgg]*game.dimension
+        cols_cnts = [[0] * lgg]*game.dimension
+
+        row_comp = [[]*game.dimension]*game.dimension
+        col_comp = [[]*game.dimension]*game.dimension
+
+        adj_cnts = [0] * (lgg+1)
+        adj_cnts_i = [0] * (lgg+1)
+        adj_cnts_j = [0] * (lgg+1)
+        adj_cnts_cr = [0] * (lgg+1)
+        adj_cnts_cc = [0] * (lgg+1)
+
+        #nadj_cnts = [0] * 32
+        #nadj_cnts_c = [0] * 32
+
+        for i in range(game.dimension):
+            for j in range(game.dimension):
+                tile = game.board[i][j]
+                if tile > 0:
+                    #tile_2 = tile*2
+                    #tile_h = tile//2
+                    sum_ += tile
+                    sum_2 += tile*tile
+                    sum_h += rt_d[tile]
+                    ltile = lg(tile)
+                    counts[ltile] += 1
+                    rows_cnts[i][ltile] += 1
+                    cols_cnts[j][ltile] += 1
+                    row_comp[i].append(tile)
+                    col_comp[j].append(tile)
+
+                    if i > 0:
+                        if game.board[i - 1][j] == tile:
+                            adj_cnts_i[ltile] += 1
+                    if i < game.dimension - 1:
+                        if game.board[i + 1][j] == tile:
+                            adj_cnts_i[ltile] += 1
+                    if j > 0:
+                        if game.board[i][j - 1] == tile:
+                            adj_cnts_j[ltile] += 1
+                    if j < game.dimension - 1:
+                        if game.board[i][j + 1] == tile:
+                            adj_cnts_j[ltile] += 1
+        for i in range(game.dimension):
+            for j in range(len(row_comp)-1):
+                if row_comp[i][j] == row_comp[i][j+1]:
+                    adj_cnts_cr[row_comp[i][j]] += 1
+            for j in range(len(col_comp)-1):
+                if col_comp[i][j] == col_comp[i][j+1]:
+                    adj_cnts_cc[col_comp[i][j]] += 1
+
+        for i in range(lgg):
+            adj_cnts[i] = adj_cnts_cr[i] + adj_cnts_cc[i]
+
+        return sum_, sum_2, sum_h, counts, rows_cnts, cols_cnts, row_comp, col_comp, adj_cnts
+
+
     # path = a_star(game, numberOfTiles_heuristic, goal, open) # 20 1.9442737102508545
 
-    game = Game(4, 32)
+    game = Game(4, 64)
     lgg = lg(game.goal)
-    sdc = game.goal + (lgg - 1)
+    sdc = game.goal + (lgg - 1) # wrong
+    target_sum = game.goal + (lgg - 2)*2
+    stats_w = [1]
 
     start = time.time()
-    # game = Game(4, 32)
-    # path = a_star(game, numberOfTiles_heuristic, goal, open)  # 20 6.00048303604126 6.003154993057251
-    # path = a_star(game, perfect_moves_heuristic, goal, open)  # 20 12.098444938659668 11.02060604095459
-    # path = a_star(game, perfect_moves_heuristic_x2, goal, open)  # 20 0.00446009635925293 0.004324436187744141 0.004242897033691406 0.0046117305755615234
-    # path = a_star(game, max_union_meta_heuristic, goal, open)  # 20 6.331159830093384 6.328663349151611
-    # path = a_star(game, max_union_meta_heuristic_x2, goal, open)  # 20 0.0882420539855957 0.08676409721374512
-    # path = a_star(game, min_moves_heuristic, goal, open)  # 20 11.976464986801147 12.508132219314575
-    # path = a_star(game, min_moves_heuristic_x2, goal, open)  # 20 0.0061643123626708984 0.005979299545288086 0.006215572357177734  0.011497020721435547 0.006448030471801758
-    # path = a_star(game, min_moves_heuristic_meta, goal, open)  # 20 8.367883682250977 8.16808557510376
-    # path = a_star(game, min_moves_heuristic_meta_x2, goal, open)  # 21 0.03540658950805664 0.036478281021118164
-    # path = a_star(game, min_moves_heuristic_meta2, goal, open)  # 20 21.07951021194458
+    # game = Game(4, 64)
+    # path = a_star(game, numberOfTiles_heuristic, goal, open)  # 37 1272.3251564502716
+    # path = a_star(game, perfect_moves_heuristic, goal, open)  #
+    # path = a_star(game, perfect_moves_heuristic_x2, goal, open)  #
+    # path = a_star(game, max_union_meta_heuristic, goal, open)  #
+    # path = a_star(game, max_union_meta_heuristic_x2, goal, open)  #
+    # path = a_star(game, min_moves_heuristic, goal, open)  #
+    # path = a_star(game, min_moves_heuristic_x2, goal, open)  #
+    # path = a_star(game, min_moves_heuristic_meta, goal, open)  #
+    # path = a_star(game, min_moves_heuristic_meta_x2, goal, open)  #
+    # path = a_star(game, min_moves_heuristic_meta2, goal, open)  #
 
 
     # game = Game(4, 32)

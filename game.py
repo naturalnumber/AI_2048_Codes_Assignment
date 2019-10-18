@@ -162,7 +162,7 @@ class Game:
 
 
 if __name__ == '__main__':
-    game = Game(5, 32)
+    game = Game(4, 2048)
 
     while not game.is_game_over() and not game.is_game_finished():
         print(game)
